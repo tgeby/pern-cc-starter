@@ -32,9 +32,15 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
     const nextId = cars.length === 0 ? 1 : Math.max(...cars.map(car => car.id)) + 1;
 
+    const { make, model, year, price } = req.body;
+
+
     const car = {
-        "id": nextId,
-        ...req.body
+        nextId,
+        make,
+        model,
+        "year": Number(year),
+        "price": Number(price)
     };
 
     if (!car.make || !car.model || !car.year || !car.price) {
@@ -47,12 +53,19 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
     const id = Number(req.params.id);
-    const newCar = {
-        "id": id,
-        ...req.body
-    };
-    if (!newCar.make || !newCar.model || !newCar.year || !newCar.price) {
+    const body = req.body;
+    if (!body.make || !body.model || !body.year || !body.price) {
         return res.status(400).send('Please provide make, model, year, and price');
+    }
+
+    const { make, model, year, price } = body;
+
+    const newCar = {
+        id,
+        make,
+        model,
+        "year": Number(year),
+        "price": Number(price)
     }
 
     const carIndex = cars.findIndex(car => car.id === Number(req.params.id));
