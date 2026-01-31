@@ -7,6 +7,12 @@ const router = express.Router();
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+   const timestamp = new Date().toISOString();
+   console.log(`[${timestamp} ${req.method} ${req.url}]`);
+   next();
+});
+
 let cars = [
     { id: 1, make: 'Toyota', model: 'Corolla', year: 2015, price: 15000 },
     { id: 2, make: 'Tesla', model: 'Model S', year: 2023, price: 25000 },
