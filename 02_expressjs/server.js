@@ -25,8 +25,8 @@ router.get('/:id', (req, res) => {
     const id = Number(req.params.id);
     const car = cars.find(car => car.id === id);
 
-    if (!car) return res.status(404).send('Car not found');
-    res.json(cars.find(car => car.id === Number(req.params.id)));
+    if (!car) return res.status(404).json({ error: 'Car not found' });
+    res.json(car);
 });
 
 router.post('/', (req, res) => {
@@ -34,18 +34,24 @@ router.post('/', (req, res) => {
 
     const { make, model, year, price } = req.body;
 
+    const parsedYear = Number(year);
+    const parsedPrice = Number(price);
+
+    if (!make || !model || year === undefined || price === undefined) {
+        return res.status(400).json({ error: 'Please provide make, model, year, and price' });
+    }
+
+    if (Number.isNaN(parsedYear) || Number.isNaN(parsedPrice)) {
+        return res.status(400).json({ error: 'Year and price must be numbers' })
+    }
 
     const car = {
-        nextId,
+        id: nextId,
         make,
         model,
-        "year": Number(year),
-        "price": Number(price)
+        "year": parsedYear,
+        "price": parsedPrice
     };
-
-    if (!car.make || !car.model || !car.year || !car.price) {
-        return res.status(400).send('Please provide make, model, year, and price');
-    }
 
     cars.push(car);
     res.status(201).json(car);
@@ -53,22 +59,30 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
     const id = Number(req.params.id);
-    const body = req.body;
-    if (!body.make || !body.model || !body.year || !body.price) {
-        return res.status(400).send('Please provide make, model, year, and price');
+
+    const { make, model, year, price } = req.body;
+
+    const parsedYear = Number(year);
+    const parsedPrice = Number(price);
+
+    if (!make  || !model || year === undefined || price === undefined) {
+        return res.status(400).json({ error: 'Please provide make, model, year, and price' });
     }
 
-    const { make, model, year, price } = body;
+    if (Number.isNaN(parsedYear) || Number.isNaN(parsedPrice)) {
+        return res.status(400).json({ error: 'Year and price must be numbers' })
+    }
 
     const newCar = {
         id,
         make,
         model,
-        "year": Number(year),
-        "price": Number(price)
+        "year": parsedYear,
+        "price": parsedPrice
     }
 
-    const carIndex = cars.findIndex(car => car.id === Number(req.params.id));
+    const carIndex = cars.findIndex(car => car.id === id);
+
     if (carIndex === -1) {
         cars.push(newCar);
         return res.status(201).json(newCar);
@@ -79,9 +93,23 @@ router.put('/:id', (req, res) => {
 
 router.delete('/:id', (req, res) => {
     const id = Number(req.params.id);
-    cars = cars.filter(car => car.id !== id);
-    res.status(204).send('Car deleted successfully');
+    const index = cars.findIndex(car => car.id === id);
+
+    if (index === -1) return res.status(404).json({ error: 'Car not found'});
+    const deleted = cars.splice(index, 1)[0];
+    res.status(200).json({ message: 'Car deleted successfully', car: deleted });
 });
+
+router.patch('/:id', (req, res) => {
+    const id = Number(req.params.id);
+    const car = cars.find(car => car.id === id);
+
+    if (!car) return res.status(404).json({ error: 'Car not found' });
+
+    Object.assign(car, req.body);
+    res.json(car);
+});
+
 
 app.use('/api/v1/cars', router);
 
