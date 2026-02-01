@@ -1,4 +1,7 @@
 import express from "express";
+import { db } from "./db.js";
+import { cars } from "./schema.js";
+import { eq } from "drizzle-orm";
 
 const app = express();
 const PORT = 3000;
@@ -6,12 +9,6 @@ const PORT = 3000;
 const router = express.Router();
 
 app.use(express.json());
-
-let cars = [
-  { id: 1, make: "Toyota", model: "Camry", year: 2022, price: 28000 },
-  { id: 2, make: "Tesla", model: "Model S", year: 2023, price: 25000 },
-  { id: 3, make: "Ford", model: "F-150", year: 2021, price: 35000 },
-];
 
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
@@ -23,77 +20,101 @@ app.get("/", (req, res) => {
   res.send("Hello from Car API!");
 });
 
-router.get("/cars", (req, res) => {
-  res.json(cars);
+router.get("/cars", async (req, res, next) => {
+  try {
+    const allCars = await db
+      .select()
+      .from(cars);
+    
+    res.json(allCars);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post("/cars", (req, res) => {
-  const { make, model, year, price } = req.body;
+router.post("/cars", async (req, res, next) => {
+  try {
+    const { make, model, year, price } = req.body;
 
-  if (!make || !model || !year || !price) {
-    return res.status(400).json({
-      error: "Please provide make, model, year, and price",
+    if (!make || !model || !year || !price) {
+      return res.status(400).json({
+        error: "Please provide make, model, year, and price",
+      });
+    }
+
+    const [newCar] = await db
+      .insert(cars)
+      .values({ make, model, year, price })
+      .returning();
+
+    res.status(201).json(newCar);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put("/cars/:id", async (req, res, next) => {
+  try {
+    const carId = Number(req.params.id);
+    const { make, model, year, price } = req.body;
+
+    if (!carId || !make || !model || !year || !price) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+
+    const [updatedCar] = await db
+      .update(cars)
+      .set({ make, model, year, price })
+      .where(eq(cars.id, carId))
+      .returning();
+    
+    if (!updatedCar) {
+      return res.status(404).json({ error: `Car with id ${carId} not found` });
+    }
+    return res.json(updatedCar);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/cars/:id", async (req, res, next) => { 
+  try {
+    const carId = Number(req.params.id);
+    const [deletedCar] = await db
+      .delete(cars)
+      .where(eq(cars.id, carId))
+      .returning();
+
+    if (!deletedCar) {
+      return res.status(404).json({ error: `Car with id ${carId} not found` });
+    }
+
+    res.json({
+      message: "Car deleted successfully",
+      car: deletedCar
     });
+  } catch (err) {
+    next(err);
   }
-
-  const nextId = cars.length + 1;
-
-  const newCar = {
-    id: nextId,
-    make,
-    model,
-    year: parseInt(year),
-    price: parseFloat(price),
-  };
-
-  cars.push(newCar);
-
-  res.status(201).json(newCar);
 });
 
-router.put("/cars/:id", (req, res) => {
-  const carId = parseInt(req.params.id);
-  const carIndex = cars.findIndex((c) => c.id === carId);
+router.get("/cars/:id", async (req, res, next) => {
+  try {
+    const carId = Number(req.params.id);
 
-  if (carIndex === -1) {
-    return res.status(404).json({ error: "Car not found" });
+    const [car] = await db
+      .select()
+      .from(cars)
+      .where(eq(cars.id, carId));
+
+    if (!car) {
+      return res.status(404).json({ error: `Car with id ${carId} not found` });
+    }
+
+    res.json(car);
+  } catch(err) {
+    next(err);
   }
-
-  const { make, model, year, price } = req.body;
-
-  if (make) cars[carIndex].make = make;
-  if (model) cars[carIndex].model = model;
-  if (year) cars[carIndex].year = parseInt(year);
-  if (price) cars[carIndex].price = parseFloat(price);
-
-  res.json(cars[carIndex]);
-});
-
-router.delete("/cars/:id", (req, res) => {
-  const carId = parseInt(req.params.id);
-  const carIndex = cars.findIndex((c) => c.id === carId);
-
-  if (carIndex === -1) {
-    return res.status(404).json({ error: "Car not found" });
-  }
-
-  const deletedCar = cars.splice(carIndex, 1)[0];
-
-  res.json({
-    message: "Car deleted successfully",
-    car: deletedCar,
-  });
-});
-
-router.get("/cars/:id", (req, res) => {
-  const carId = parseInt(req.params.id);
-  const car = cars.find((c) => c.id === carId);
-
-  if (!car) {
-    return res.status(404).json({ error: "Car not found" });
-  }
-
-  res.json(car);
 });
 
 app.use("/api/v1", router);
